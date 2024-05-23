@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 
-// Middleware to check if the user is authenticated
 function isAuthenticated(req, res, next) {
   if (req.isAuthenticated()) {
     return next();
@@ -11,7 +10,6 @@ function isAuthenticated(req, res, next) {
   }
 }
 
-// Middleware to check if the user is an admin
 function isAdmin(req, res, next) {
   if (req.user && req.user.role === 'admin') {
     return next();
@@ -20,171 +18,164 @@ function isAdmin(req, res, next) {
   }
 }
 
-// Get logged-in user's profile
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: User management and profile endpoints
+ */
+
+/**
+ * @swagger
+ * /users/profile:
+ *   get:
+ *     summary: Get the logged-in user's profile
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *       401:
+ *         description: Not authenticated
+ */
 router.get('/profile', isAuthenticated, (req, res) => {
   res.json(req.user);
 });
 
-// Update profile details
-router.put('/profile', isAuthenticated, (req, res) => {
-  const updates = req.body;
-  User.findByIdAndUpdate(req.user._id, updates, { new: true }, (err, user) => {
-    if (err) return res.status(500).send(err);
+/**
+ * @swagger
+ * /users/profile:
+ *   put:
+ *     summary: Update the logged-in user's profile
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               isPublic:
+ *                 type: boolean
+ *               profileDetails:
+ *                 type: object
+ *                 properties:
+ *                   photo:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   bio:
+ *                     type: string
+ *                   phone:
+ *                     type: string
+ *     responses:
+ *       200:
+ *         description: User profile updated successfully
+ *       401:
+ *         description: Not authenticated
+ *       500:
+ *         description: Server error
+ */
+router.put('/profile', isAuthenticated, async (req, res) => {
+  try {
+    const updates = req.body;
+    const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true });
     res.json(user);
-  });
+  } catch (err) {
+    res.status(500).send(err);
+  }
 });
 
-// Get a specific user's profile
-router.get('/user/:id', isAuthenticated, (req, res) => {
-  User.findById(req.params.id, (err, user) => {
-    if (err) return res.status(500).send(err);
+/**
+ * @swagger
+ * /users/user/{id}:
+ *   get:
+ *     summary: Get a specific user's profile
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The user ID
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Not authorized to view this profile
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+router.get('/user/:id', isAuthenticated, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).send('User not found');
     if (user.isPublic || req.user.role === 'admin') {
       res.json(user);
     } else {
       res.status(403).send('Not authorized to view this profile');
     }
-  });
+  } catch (err) {
+    res.status(500).send(err);
+  }
 });
 
-// Get all public profiles
-router.get('/users/public', isAuthenticated, (req, res) => {
-  User.find({ isPublic: true }, (err, users) => {
-    if (err) return res.status(500).send(err);
+/**
+ * @swagger
+ * /users/public:
+ *   get:
+ *     summary: Get all public profiles
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Public profiles retrieved successfully
+ *       401:
+ *         description: Not authenticated
+ *       500:
+ *         description: Server error
+ */
+router.get('/public', isAuthenticated, async (req, res) => {
+  try {
+    const users = await User.find({ isPublic: true });
     res.json(users);
-  });
+  } catch (err) {
+    res.status(500).send(err);
+  }
 });
 
-// Admin can view all profiles
-router.get('/users', isAuthenticated, isAdmin, (req, res) => {
-  User.find({}, (err, users) => {
-    if (err) return res.status(500).send(err);
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Get all user profiles (admin only)
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: User profiles retrieved successfully
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Not authorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/', isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({});
     res.json(users);
-  });
+  } catch (err) {
+    res.status(500).send(err);
+  }
 });
 
 module.exports = router;
-
-
-
-// const express = require('express');
-// const router = express.Router();
-// const User = require('../models/User');
-
-// // Middleware to check if the user is authenticated
-// function isAuthenticated(req, res, next) {
-//   if (req.isAuthenticated()) {
-//     return next();
-//   } else {
-//     res.status(401).send('Not authenticated');
-//   }
-// }
-
-// // Middleware to check if the user is an admin
-// function isAdmin(req, res, next) {
-//   if (req.user && req.user.role === 'admin') {
-//     return next();
-//   } else {
-//     res.status(403).send('Not authorized');
-//   }
-// }
-
-// // Get logged-in user's profile
-// router.get('/profile', isAuthenticated, (req, res) => {
-//   res.json(req.user);
-// });
-
-// // Update profile details
-// router.put('/profile', isAuthenticated, (req, res) => {
-//   const updates = req.body;
-//   User.findByIdAndUpdate(req.user._id, updates, { new: true }, (err, user) => {
-//     if (err) return res.status(500).send(err);
-//     res.json(user);
-//   });
-// });
-
-// // Get a specific user's profile
-// router.get('/user/:id', isAuthenticated, (req, res) => {
-//   User.findById(req.params.id, (err, user) => {
-//     if (err) return res.status(500).send(err);
-//     if (!user) return res.status(404).send('User not found');
-//     if (user.isPublic || req.user.role === 'admin') {
-//       res.json(user);
-//     } else {
-//       res.status(403).send('Not authorized to view this profile');
-//     }
-//   });
-// });
-
-// // Get all public profiles
-// router.get('/users/public', isAuthenticated, (req, res) => {
-//   User.find({ isPublic: true }, (err, users) => {
-//     if (err) return res.status(500).send(err);
-//     res.json(users);
-//   });
-// });
-
-// // Admin can view all profiles
-// router.get('/users', isAuthenticated, isAdmin, (req, res) => {
-//   User.find({}, (err, users) => {
-//     if (err) return res.status(500).send(err);
-//     res.json(users);
-//   });
-// });
-
-// module.exports = router;
-
-
-// const express = require('express');
-// const router = express.Router();
-// const User = require('../models/User');
-
-// router.get('/profile', (req, res) => {
-//   if (req.isAuthenticated()) {
-//     res.json(req.user);
-//   } else {
-//     res.status(401).send('Not authenticated');
-//   }
-// });
-
-// router.get('/user/:id', (req, res) => {
-//   if (req.user && req.user.role === 'admin') {
-//     User.findById(req.params.id, (err, user) => {
-//       if (err) return res.status(500).send(err);
-//       if (!user) return res.status(404).send('User not found');
-//       res.json(user);
-//     });
-//   } else {
-//     res.status(403).send('Not authorized');
-//   }
-// });
-
-// module.exports = router;
-
-
-// const express = require('express');
-// const router = express.Router();
-// const User = require('../models/User');
-
-// router.get('/profile', (req, res) => {
-//     if (req.isAuthenticated()) {
-//       res.json(req.user);
-//     } else {
-//       res.status(401).send('Not authenticated');
-//     }
-//   });
-  
-//   router.get('/user/:id', (req, res) => {
-//     if (req.user && req.user.role === 'admin') {
-//       User.findById(req.params.id, (err, user) => {
-//         if (err) return res.status(500).send(err);
-//         if (!user) return res.status(404).send('User not found');
-//         res.json(user);
-//       });
-//     } else {
-//       res.status(403).send('Not authorized');
-//     }
-//   });
-  
-//   module.exports = router;
-  
